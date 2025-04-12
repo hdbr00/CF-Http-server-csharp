@@ -12,10 +12,12 @@ server.Start();
 using (Socket socket = server.AcceptSocket())
 {
     string Text = ReceiveRequest(socket);
+    Console.WriteLine(Text); 
     string path = ExtractPath(Text);
-    string response = GenerateResponse(path); 
+    string response = GenerateResponse(path);
+    Console.WriteLine(response);
 
-    byte[] ResponseBytes = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\n\r\n");
+    byte[] ResponseBytes = Encoding.ASCII.GetBytes(response);
     socket.Send(ResponseBytes); 
 }
 
@@ -41,4 +43,4 @@ static string GenerateResponse(string path)
         return "HTTP/1.1 404 Not Found\r\n\r\n";
 }
 
-
+Console.ReadKey();
