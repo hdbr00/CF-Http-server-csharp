@@ -9,30 +9,47 @@ Console.WriteLine("Logs from your program will appear here!");
 TcpListener server = new TcpListener(IPAddress.Any, 4221);
 server.Start();
 
-using (Socket socket = server.AcceptSocket())
+
+//Sockets. 
+while (true)
 {
-    string Text = ReceiveRequest(socket);
-    Console.WriteLine(Text); 
-    
-    
-    
-    string path = ExtractPath(Text);
+    Socket socket = server.AcceptSocket();
+    // Ejecuta la lógica del cliente en segundo plano
+    Task.Run(() =>
+    {
+        try
+        {
+            string requestText = ReceiveRequest(socket);
+            Console.WriteLine("Request received:\n" + requestText);
+
+            string path = ExtractPath(requestText);
+
+            string response;
+            if (path == "/user-agent")
+            {
+                string userAgent = ExtractUserAgent(requestText);
+                response = GenerateUserAgentResponse(userAgent);
+            }
+            else
+            {
+                response = GenerateResponse(path);
+            }
+
+            byte[] responseBytes = Encoding.ASCII.GetBytes(response);
+            socket.Send(responseBytes);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error: " + ex.Message);
+        }
+        finally
+        {
+            socket.Close();
+        }
+    });
+ }
 
 
-    if (path == "/user-agent")
-    {
-        string userAgent = ExtractUserAgent(Text); 
-        string response = GenerateUserAgentResponse(userAgent);
-        byte[] responseBytes = Encoding.ASCII.GetBytes(response);
-        socket.Send(responseBytes);
-    }
-    else
-    {
-        string response = GenerateResponse(path); 
-        byte[] responseBytes = Encoding.ASCII.GetBytes(response);
-        socket.Send(responseBytes);
-    }
-}
 
 static string ReceiveRequest(Socket socket)
 {
