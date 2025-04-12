@@ -14,11 +14,20 @@ using (Socket socket = server.AcceptSocket())
     string Text = ReceiveRequest(socket);
     Console.WriteLine(Text); 
     string path = ExtractPath(Text);
-    string response = GenerateResponse(path);
-    Console.WriteLine(response);
 
-    byte[] ResponseBytes = Encoding.ASCII.GetBytes(response);
-    socket.Send(ResponseBytes); 
+
+    if (path == "/user-agent")
+    {
+        string userAgent = ExtractUserAgent(Text); 
+        string response = GenerateUserAgentResponse(userAgent); 
+
+    }
+    else
+    {
+        string response = GenerateResponse(path); 
+        byte[] responseBytes = Encoding.ASCII.GetBytes(response);
+        socket.Send(responseBytes);
+    }
 }
 
 static string ReceiveRequest(Socket socket)
@@ -35,6 +44,29 @@ static string ExtractPath(string requestText)
     string[] parts = requestLine.Split(' ');
     return parts.Length > 1 ? parts[1] : "/";
 }
+
+static string ExtractUserAgent(string requestText)
+{
+    string[] headers = requestText.Split("\r\n");
+    foreach (string header in headers)
+    {
+        if (header.StartsWith("User-Agent:"))
+        {
+            return header.Substring("User-Agent:".Length).Trim();
+        }
+    }
+    return string.Empty; 
+}
+
+
+static string GenerateUserAgentResponse(string userAgent)
+{
+    string body = userAgent;
+    string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {body.Length}\r\n\r\n";
+    return headers + body;
+}
+
+
 
 /* MAYBE ? 
 You must reply 200 OK to /
@@ -59,6 +91,8 @@ static string GenerateResponse(string path)
         return "HTTP/1.1 404 Not Found\r\n\r\n";
     }
 }
+
+// Función para extraer el User-Agent de los encabezados
 
 
 
