@@ -33,7 +33,7 @@ while (true)
             }
             else
             {
-                response = GenerateResponse(path,directory);
+                response = GenerateResponse(path,directory,requestText);
             }
 
             byte[] responseBytes = Encoding.ASCII.GetBytes(response);
@@ -117,8 +117,29 @@ You must reply 200 OK to /
 You must reply 200 OK to /echo/abc and return content
 You must reply 404 Not Found to anything else */
 
-static string GenerateResponse(string path,string directory)
+static string GenerateResponse(string path,string directory,string requestText)
 {
+    string[] lines = requestText.Split("\r\n");
+    string method = lines[0].Split(" ")[0];
+
+    // Extraer Content-Length si es POST
+    int contentLength = 0;
+    foreach (string line in lines)
+    {
+        if (line.StartsWith("Content-Length:"))
+        {
+            contentLength = int.Parse(line.Substring("Content-Length:".Length).Trim());
+        }
+    }
+
+    // Extraer cuerpo del request
+    string body = "";
+    int bodyIndex = requestText.IndexOf("\r\n\r\n");
+    if (bodyIndex != -1 && bodyIndex + 4 < requestText.Length)
+    {
+        body = requestText.Substring(bodyIndex + 4);
+    }
+
     if (path == "/")
     {
         return "HTTP/1.1 200 OK\r\n\r\n";
@@ -126,30 +147,36 @@ static string GenerateResponse(string path,string directory)
     else if (path.StartsWith("/echo/"))
     {
         string echoString = path.Substring(6);
-        string body = echoString;
-        string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {body.Length}\r\n\r\n";
-        return headers + body;
+        string bodyText = echoString;
+        string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {bodyText.Length}\r\n\r\n";
+        return headers + bodyText;
     }
     else if (path.StartsWith("/files/"))
     {
         string filename = path.Substring("/files/".Length);
         string filePath = Path.Combine(directory, filename);
 
-        if (File.Exists(filePath))
+        if (method == "POST")
         {
-            string fileContent = File.ReadAllText(filePath);
-            string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileContent.Length}\r\n\r\n";
-            return headers + fileContent;
+            File.WriteAllText(filePath, body);
+            return "HTTP/1.1 201 Created\r\n\r\n";
         }
-        else
+        else if (method == "GET")
         {
-            return "HTTP/1.1 404 Not Found\r\n\r\n";
+            if (File.Exists(filePath))
+            {
+                string fileContent = File.ReadAllText(filePath);
+                string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileContent.Length}\r\n\r\n";
+                return headers + fileContent;
+            }
+            else
+            {
+                return "HTTP/1.1 404 Not Found\r\n\r\n";
+            }
         }
     }
-    else
-    {
-        return "HTTP/1.1 404 Not Found\r\n\r\n";
-    }
+
+    return "HTTP/1.1 404 Not Found\r\n\r\n";
 }
 
 
