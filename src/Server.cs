@@ -1,4 +1,4 @@
-using System.IO.Compression;
+ï»¿using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -16,7 +16,7 @@ string directory = GetDirectoryFromArgs(args);
 while (true)
 {
     Socket socket = server.AcceptSocket();
-    // Ejecuta la lógica del cliente en segundo plano
+    // Ejecuta la lÃ³gica del cliente en segundo plano
     Task.Run(() =>
     {
         try
@@ -25,23 +25,21 @@ while (true)
             Console.WriteLine("Request received:\n" + requestText);
 
             bool supportsGzip = ClientSupportsGzip(requestText);
-            
-
             string path = ExtractPath(requestText);
 
-            string response;
+            byte[] response;
+
             if (path == "/user-agent")
             {
                 string userAgent = ExtractUserAgent(requestText);
-                response = GenerateUserAgentResponse(userAgent);
+                response = GenerateUserAgentResponse(userAgent); // â† debe retornar byte[]
             }
             else
             {
-                response = GenerateResponse(path,directory,requestText,supportsGzip);
+                response = GenerateResponse(path, directory, requestText, supportsGzip);
             }
 
-            byte[] responseBytes = Encoding.ASCII.GetBytes(response);
-            socket.Send(responseBytes);
+            socket.Send(response);
         }
         catch (Exception ex)
         {
@@ -112,21 +110,20 @@ static string ExtractUserAgent(string requestText)
 }
 
 
-static string GenerateUserAgentResponse(string userAgent)
+static byte[] GenerateUserAgentResponse(string userAgent)
 {
     if (string.IsNullOrEmpty(userAgent))
     {
-        userAgent = "Unknown";  
+        userAgent = "Unknown";
     }
 
-   
     string body = userAgent;
-
 
     string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {body.Length}\r\n\r\n";
 
-   
-    return headers + body;
+    string fullResponse = headers + body;
+
+    return Encoding.UTF8.GetBytes(fullResponse);
 }
 
 
@@ -136,15 +133,10 @@ You must reply 200 OK to /
 You must reply 200 OK to /echo/abc and return content
 You must reply 404 Not Found to anything else */
 
-static string GenerateResponse(string path, string directory, string requestText,bool supportsGzip)
+static byte[] GenerateResponse(string path, string directory, string requestText, bool supportsGzip)
 {
     string[] lines = requestText.Split("\r\n");
     string method = lines[0].Split(" ")[0];
-
-    // Detectar si se aceptan respuestas gzip
-    bool clientAcceptsGzip = lines.Any(line =>
-        line.StartsWith("Accept-Encoding:", StringComparison.OrdinalIgnoreCase) &&
-        line.ToLower().Contains("gzip"));
 
     // Extraer Content-Length si es POST
     int contentLength = 0;
@@ -166,19 +158,19 @@ static string GenerateResponse(string path, string directory, string requestText
 
     if (path == "/")
     {
-        return "HTTP/1.1 200 OK\r\n\r\n";
+        string response = "HTTP/1.1 200 OK\r\n\r\n";
+        return Encoding.ASCII.GetBytes(response);
     }
     else if (path.StartsWith("/echo/"))
     {
         string echoString = path.Substring(6);
 
-        if (clientAcceptsGzip)
+        if (supportsGzip)
         {
-            // Comprimir el contenido
             byte[] uncompressedBytes = Encoding.UTF8.GetBytes(echoString);
             using (var outputStream = new MemoryStream())
             {
-                using (var gzipStream = new GZipStream(outputStream, CompressionLevel.Optimal))
+                using (var gzipStream = new GZipStream(outputStream, CompressionLevel.Optimal, leaveOpen: true))
                 {
                     gzipStream.Write(uncompressedBytes, 0, uncompressedBytes.Length);
                 }
@@ -190,15 +182,15 @@ static string GenerateResponse(string path, string directory, string requestText
                                  "Content-Encoding: gzip\r\n" +
                                  $"Content-Length: {compressedBytes.Length}\r\n\r\n";
 
-                return headers + Encoding.GetEncoding("ISO-8859-1").GetString(compressedBytes);
+                byte[] headerBytes = Encoding.ASCII.GetBytes(headers);
+                return headerBytes.Concat(compressedBytes).ToArray();
             }
         }
         else
         {
-            // Respuesta sin compresión
             string bodyText = echoString;
             string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {bodyText.Length}\r\n\r\n";
-            return headers + bodyText;
+            return Encoding.ASCII.GetBytes(headers + bodyText);
         }
     }
     else if (path.StartsWith("/files/"))
@@ -209,7 +201,7 @@ static string GenerateResponse(string path, string directory, string requestText
         if (method == "POST")
         {
             File.WriteAllText(filePath, body);
-            return "HTTP/1.1 201 Created\r\n\r\n";
+            return Encoding.ASCII.GetBytes("HTTP/1.1 201 Created\r\n\r\n");
         }
         else if (method == "GET")
         {
@@ -217,16 +209,15 @@ static string GenerateResponse(string path, string directory, string requestText
             {
                 string fileContent = File.ReadAllText(filePath);
                 string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileContent.Length}\r\n\r\n";
-                return headers + fileContent;
+                return Encoding.ASCII.GetBytes(headers + fileContent);
             }
             else
             {
-                return "HTTP/1.1 404 Not Found\r\n\r\n";
+                return Encoding.ASCII.GetBytes("HTTP/1.1 404 Not Found\r\n\r\n");
             }
         }
     }
 
-    return "HTTP/1.1 404 Not Found\r\n\r\n";
+    return Encoding.ASCII.GetBytes("HTTP/1.1 404 Not Found\r\n\r\n");
 }
-
 
