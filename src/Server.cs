@@ -35,12 +35,31 @@ static string ExtractPath(string requestText)
     string[] parts = requestLine.Split(' ');
     return parts.Length > 1 ? parts[1] : "/";
 }
+
+/* MAYBE ? 
+You must reply 200 OK to /
+You must reply 200 OK to /echo/abc and return content
+You must reply 404 Not Found to anything else */
+
 static string GenerateResponse(string path)
 {
     if (path == "/")
+    {
         return "HTTP/1.1 200 OK\r\n\r\n";
+    }
+    else if (path.StartsWith("/echo/"))
+    {
+        string echoString = path.Substring(6); 
+        string body = echoString;
+        string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {body.Length}\r\n\r\n";
+        return headers + body; 
+    }
     else
+    {
         return "HTTP/1.1 404 Not Found\r\n\r\n";
+    }
 }
+
+
 
 Console.ReadKey();
