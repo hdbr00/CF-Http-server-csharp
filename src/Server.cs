@@ -13,14 +13,18 @@ using (Socket socket = server.AcceptSocket())
 {
     string Text = ReceiveRequest(socket);
     Console.WriteLine(Text); 
+    
+    
+    
     string path = ExtractPath(Text);
 
 
     if (path == "/user-agent")
     {
         string userAgent = ExtractUserAgent(Text); 
-        string response = GenerateUserAgentResponse(userAgent); 
-
+        string response = GenerateUserAgentResponse(userAgent);
+        byte[] responseBytes = Encoding.ASCII.GetBytes(response);
+        socket.Send(responseBytes);
     }
     else
     {
@@ -61,8 +65,18 @@ static string ExtractUserAgent(string requestText)
 
 static string GenerateUserAgentResponse(string userAgent)
 {
+    if (string.IsNullOrEmpty(userAgent))
+    {
+        userAgent = "Unknown";  
+    }
+
+   
     string body = userAgent;
+
+
     string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {body.Length}\r\n\r\n";
+
+   
     return headers + body;
 }
 
@@ -77,22 +91,26 @@ static string GenerateResponse(string path)
 {
     if (path == "/")
     {
-        return "HTTP/1.1 200 OK\r\n\r\n";
+        return "HTTP/1.1 200 OK\r\n\r\n"; 
     }
     else if (path.StartsWith("/echo/"))
     {
-        string echoString = path.Substring(6); 
+        string echoString = path.Substring(6);
         string body = echoString;
         string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {body.Length}\r\n\r\n";
-        return headers + body; 
+        return headers + body;  
+    }
+    else if (path.StartsWith("/user-agent"))
+    {
+        
+        return "HTTP/1.1 404 Not Found\r\n\r\n"; 
     }
     else
     {
-        return "HTTP/1.1 404 Not Found\r\n\r\n";
+        return "HTTP/1.1 404 Not Found\r\n\r\n";  
     }
 }
 
-// Función para extraer el User-Agent de los encabezados
 
 
 
