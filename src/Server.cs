@@ -44,7 +44,7 @@ while (true)
                 }
                 else
                 {
-                    response = GenerateResponse(path, directory, requestText, supportsGzip);
+                    response = GenerateResponse(path, directory, requestText, supportsGzip,shouldClose);
                 }
 
                 socket.Send(response);
@@ -178,7 +178,7 @@ You must reply 200 OK to /
 You must reply 200 OK to /echo/abc and return content
 You must reply 404 Not Found to anything else */
 
-static byte[] GenerateResponse(string path, string directory, string requestText, bool supportsGzip)
+static byte[] GenerateResponse(string path, string directory, string requestText, bool supportsGzip, bool shouldClose)
 {
     string[] lines = requestText.Split("\r\n");
     string method = lines[0].Split(" ")[0];
@@ -201,9 +201,11 @@ static byte[] GenerateResponse(string path, string directory, string requestText
         body = requestText.Substring(bodyIndex + 4);
     }
 
+    string connectionHeader = shouldClose ? "Connection: close\r\n" : "";
+
     if (path == "/")
     {
-        string response = "HTTP/1.1 200 OK\r\n\r\n";
+        string response = $"HTTP/1.1 200 OK\r\n{connectionHeader}\r\n";
         return Encoding.ASCII.GetBytes(response);
     }
     else if (path.StartsWith("/echo/"))
@@ -215,7 +217,7 @@ static byte[] GenerateResponse(string path, string directory, string requestText
             byte[] uncompressedBytes = Encoding.UTF8.GetBytes(echoString);
             using (var outputStream = new MemoryStream())
             {
-                using (var gzipStream = new GZipStream(outputStream, CompressionLevel.Optimal, leaveOpen: true))
+                using (var gzipStream = new GZipStream(outputStream, CompressionLevel.Optimal))
                 {
                     gzipStream.Write(uncompressedBytes, 0, uncompressedBytes.Length);
                 }
@@ -225,17 +227,18 @@ static byte[] GenerateResponse(string path, string directory, string requestText
                 string headers = "HTTP/1.1 200 OK\r\n" +
                                  "Content-Type: text/plain\r\n" +
                                  "Content-Encoding: gzip\r\n" +
+                                 connectionHeader +
                                  $"Content-Length: {compressedBytes.Length}\r\n\r\n";
 
-                byte[] headerBytes = Encoding.ASCII.GetBytes(headers);
-                return headerBytes.Concat(compressedBytes).ToArray();
+                return Encoding.GetEncoding("ISO-8859-1").GetBytes(headers)
+                    .Concat(compressedBytes)
+                    .ToArray();
             }
         }
         else
         {
-            string bodyText = echoString;
-            string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {bodyText.Length}\r\n\r\n";
-            return Encoding.ASCII.GetBytes(headers + bodyText);
+            string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n{connectionHeader}Content-Length: {echoString.Length}\r\n\r\n";
+            return Encoding.ASCII.GetBytes(headers + echoString);
         }
     }
     else if (path.StartsWith("/files/"))
@@ -246,23 +249,25 @@ static byte[] GenerateResponse(string path, string directory, string requestText
         if (method == "POST")
         {
             File.WriteAllText(filePath, body);
-            return Encoding.ASCII.GetBytes("HTTP/1.1 201 Created\r\n\r\n");
+            string response = $"HTTP/1.1 201 Created\r\n{connectionHeader}\r\n";
+            return Encoding.ASCII.GetBytes(response);
         }
         else if (method == "GET")
         {
             if (File.Exists(filePath))
             {
                 string fileContent = File.ReadAllText(filePath);
-                string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileContent.Length}\r\n\r\n";
+                string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n{connectionHeader}Content-Length: {fileContent.Length}\r\n\r\n";
                 return Encoding.ASCII.GetBytes(headers + fileContent);
             }
             else
             {
-                return Encoding.ASCII.GetBytes("HTTP/1.1 404 Not Found\r\n\r\n");
+                string response = $"HTTP/1.1 404 Not Found\r\n{connectionHeader}\r\n";
+                return Encoding.ASCII.GetBytes(response);
             }
         }
     }
 
-    return Encoding.ASCII.GetBytes("HTTP/1.1 404 Not Found\r\n\r\n");
+    string notFound = $"HTTP/1.1 404 Not Found\r\n{connectionHeader}\r\n";
+    return Encoding.ASCII.GetBytes(notFound);
 }
-
