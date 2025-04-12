@@ -9,6 +9,7 @@ Console.WriteLine("Logs from your program will appear here!");
 TcpListener server = new TcpListener(IPAddress.Any, 4221);
 server.Start();
 
+string directory = GetDirectoryFromArgs(args); 
 
 //Sockets. 
 while (true)
@@ -32,7 +33,7 @@ while (true)
             }
             else
             {
-                response = GenerateResponse(path);
+                response = GenerateResponse(path,directory);
             }
 
             byte[] responseBytes = Encoding.ASCII.GetBytes(response);
@@ -47,9 +48,21 @@ while (true)
             socket.Close();
         }
     });
+
  }
 
 
+static string GetDirectoryFromArgs(string[] args)
+{
+    for (int i = 0; i < args.Length - 1; i++)
+    {
+        if (args[i] == "--directory")
+        {
+            return args[i + 1];
+        }
+    }
+    return Directory.GetCurrentDirectory(); 
+}
 
 static string ReceiveRequest(Socket socket)
 {
@@ -104,31 +117,41 @@ You must reply 200 OK to /
 You must reply 200 OK to /echo/abc and return content
 You must reply 404 Not Found to anything else */
 
-static string GenerateResponse(string path)
+static string GenerateResponse(string path,string directory)
 {
     if (path == "/")
     {
-        return "HTTP/1.1 200 OK\r\n\r\n"; 
+        return "HTTP/1.1 200 OK\r\n\r\n";
     }
     else if (path.StartsWith("/echo/"))
     {
         string echoString = path.Substring(6);
         string body = echoString;
         string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {body.Length}\r\n\r\n";
-        return headers + body;  
+        return headers + body;
     }
-    else if (path.StartsWith("/user-agent"))
+    else if (path.StartsWith("/files/"))
     {
-        
-        return "HTTP/1.1 404 Not Found\r\n\r\n"; 
+        string filename = path.Substring("/files/".Length);
+        string filePath = Path.Combine(directory, filename);
+
+        if (File.Exists(filePath))
+        {
+            string fileContent = File.ReadAllText(filePath);
+            string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileContent.Length}\r\n\r\n";
+            return headers + fileContent;
+        }
+        else
+        {
+            return "HTTP/1.1 404 Not Found\r\n\r\n";
+        }
     }
     else
     {
-        return "HTTP/1.1 404 Not Found\r\n\r\n";  
+        return "HTTP/1.1 404 Not Found\r\n\r\n";
     }
 }
 
 
 
 
-Console.ReadKey();
