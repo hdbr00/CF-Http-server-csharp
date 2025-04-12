@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 Console.WriteLine("Logs from your program will appear here!");
@@ -10,36 +11,47 @@ Console.WriteLine("Logs from your program will appear here!");
 TcpListener server = new TcpListener(IPAddress.Any, 4221);
 server.Start();
 
-string directory = GetDirectoryFromArgs(args); 
+string directory = GetDirectoryFromArgs(args);
 
 //Sockets. 
 while (true)
 {
     Socket socket = server.AcceptSocket();
-    // Ejecuta la lógica del cliente en segundo plano
+
     Task.Run(() =>
     {
         try
         {
-            string requestText = ReceiveRequest(socket);
-            Console.WriteLine("Request received:\n" + requestText);
-
-            bool supportsGzip = ClientSupportsGzip(requestText);
-            string path = ExtractPath(requestText);
-
-            byte[] response;
-
-            if (path == "/user-agent")
+            while (true)
             {
-                string userAgent = ExtractUserAgent(requestText);
-                response = GenerateUserAgentResponse(userAgent); // ← debe retornar byte[]
-            }
-            else
-            {
-                response = GenerateResponse(path, directory, requestText, supportsGzip);
-            }
+                string requestText = ReceiveRequest(socket);
 
-            socket.Send(response);
+                if (string.IsNullOrWhiteSpace(requestText))
+                    break;
+
+                Console.WriteLine("Request received:\n" + requestText);
+
+                bool supportsGzip = ClientSupportsGzip(requestText);
+                string path = ExtractPath(requestText);
+                bool shouldClose = requestText.ToLower().Contains("connection: close");
+
+                byte[] response;
+
+                if (path == "/user-agent")
+                {
+                    string userAgent = ExtractUserAgent(requestText);
+                    response = GenerateUserAgentResponse(userAgent);
+                }
+                else
+                {
+                    response = GenerateResponse(path, directory, requestText, supportsGzip);
+                }
+
+                socket.Send(response);
+
+                if (shouldClose)
+                    break;
+            }
         }
         catch (Exception ex)
         {
@@ -50,8 +62,7 @@ while (true)
             socket.Close();
         }
     });
-
- }
+}
 
 static bool ClientSupportsGzip(string requestText)
 {
@@ -83,9 +94,44 @@ static string GetDirectoryFromArgs(string[] args)
 
 static string ReceiveRequest(Socket socket)
 {
-    byte[] buffer = new byte[1024];
-    int bytesReceived = socket.Receive(buffer);
-    return Encoding.ASCII.GetString(buffer, 0, bytesReceived);
+    var buffer = new byte[1024];
+    var requestBuilder = new StringBuilder();
+    int bytesReceived;
+
+    while (true)
+    {
+        bytesReceived = socket.Receive(buffer);
+        if (bytesReceived == 0)
+            break;
+
+        requestBuilder.Append(Encoding.ASCII.GetString(buffer, 0, bytesReceived));
+
+    
+        if (requestBuilder.ToString().Contains("\r\n\r\n"))
+            break;
+    }
+
+    string request = requestBuilder.ToString();
+
+
+    int contentLength = 0;
+    var match = Regex.Match(request, @"Content-Length:\s*(\d+)", RegexOptions.IgnoreCase);
+    if (match.Success)
+    {
+        contentLength = int.Parse(match.Groups[1].Value);
+
+        int bodyStartIndex = request.IndexOf("\r\n\r\n") + 4;
+        int bodyLengthInBuffer = request.Length - bodyStartIndex;
+
+        while (bodyLengthInBuffer < contentLength)
+        {
+            bytesReceived = socket.Receive(buffer);
+            requestBuilder.Append(Encoding.ASCII.GetString(buffer, 0, bytesReceived));
+            bodyLengthInBuffer = requestBuilder.ToString().Length - bodyStartIndex;
+        }
+    }
+
+    return requestBuilder.ToString();
 }
 
 
@@ -108,7 +154,6 @@ static string ExtractUserAgent(string requestText)
     }
     return string.Empty; 
 }
-
 
 static byte[] GenerateUserAgentResponse(string userAgent)
 {
