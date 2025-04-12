@@ -23,6 +23,8 @@ while (true)
             string requestText = ReceiveRequest(socket);
             Console.WriteLine("Request received:\n" + requestText);
 
+            bool supportsGzip = ClientSupportsGzip(requestText);
+
             string path = ExtractPath(requestText);
 
             string response;
@@ -33,7 +35,7 @@ while (true)
             }
             else
             {
-                response = GenerateResponse(path,directory,requestText);
+                response = GenerateResponse(path,directory,requestText,supportsGzip);
             }
 
             byte[] responseBytes = Encoding.ASCII.GetBytes(response);
@@ -51,6 +53,21 @@ while (true)
 
  }
 
+static bool ClientSupportsGzip(string requestText)
+{
+    string[] headers = requestText.Split("\r\n");
+    foreach (string header in headers)
+    {
+        if (header.StartsWith("Accept-Encoding:", StringComparison.OrdinalIgnoreCase))
+        {
+            if (header.ToLower().Contains("gzip"))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 static string GetDirectoryFromArgs(string[] args)
 {
@@ -117,7 +134,7 @@ You must reply 200 OK to /
 You must reply 200 OK to /echo/abc and return content
 You must reply 404 Not Found to anything else */
 
-static string GenerateResponse(string path,string directory,string requestText)
+static string GenerateResponse(string path, string directory, string requestText, bool supportsGzip)
 {
     string[] lines = requestText.Split("\r\n");
     string method = lines[0].Split(" ")[0];
@@ -148,7 +165,12 @@ static string GenerateResponse(string path,string directory,string requestText)
     {
         string echoString = path.Substring(6);
         string bodyText = echoString;
-        string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {bodyText.Length}\r\n\r\n";
+        string headers = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {bodyText.Length}\r\n";
+        if (supportsGzip)
+        {
+            headers += "Content-Encoding: gzip\r\n";
+        }
+        headers += "\r\n";
         return headers + bodyText;
     }
     else if (path.StartsWith("/files/"))
@@ -166,7 +188,12 @@ static string GenerateResponse(string path,string directory,string requestText)
             if (File.Exists(filePath))
             {
                 string fileContent = File.ReadAllText(filePath);
-                string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileContent.Length}\r\n\r\n";
+                string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileContent.Length}\r\n";
+                if (supportsGzip)
+                {
+                    headers += "Content-Encoding: gzip\r\n";
+                }
+                headers += "\r\n";
                 return headers + fileContent;
             }
             else
@@ -178,7 +205,5 @@ static string GenerateResponse(string path,string directory,string requestText)
 
     return "HTTP/1.1 404 Not Found\r\n\r\n";
 }
-
-
 
 
