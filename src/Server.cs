@@ -11,6 +11,34 @@ server.Start();
 
 using (Socket socket = server.AcceptSocket())
 {
+    string Text = ReceiveRequest(socket);
+    string path = ExtractPath(Text);
+    string response = GenerateResponse(path); 
+
     byte[] ResponseBytes = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\n\r\n");
     socket.Send(ResponseBytes); 
 }
+
+static string ReceiveRequest(Socket socket)
+{
+    byte[] buffer = new byte[1024];
+    int bytesReceived = socket.Receive(buffer);
+    return Encoding.ASCII.GetString(buffer, 0, bytesReceived);
+}
+
+
+static string ExtractPath(string requestText)
+{
+    string requestLine = requestText.Split("\r\n")[0];
+    string[] parts = requestLine.Split(' ');
+    return parts.Length > 1 ? parts[1] : "/";
+}
+static string GenerateResponse(string path)
+{
+    if (path == "/")
+        return "HTTP/1.1 200 OK\r\n\r\n";
+    else
+        return "HTTP/1.1 404 Not Found\r\n\r\n";
+}
+
+
