@@ -11,27 +11,78 @@ Along the way you'll learn about TCP servers,
 [HTTP request syntax](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html),
 and more.
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+## Implemented Features
 
-# Passing the first stage
+- [x] Bind to a port  
+- [x] Respond with 200  
+- [x] Extract with 200  
+- [x] Extract URL path  
+- [x] Respond with body  
+- [x] Read header  
+- [x] Concurrent connections  
+- [x] Return a file  
+- [x] Read request body  
+- [x] Compression headers
 
-The entry point for your HTTP server implementation is in `src/Server.cs`. Study
-and uncomment the relevant code, and push your changes to pass the first stage:
+### Echo Service
 
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
+```http
+GET /echo/hello-world HTTP/1.1
+Host: localhost:4221
+Accept-Encoding: gzip
+
+HTTP/1.1 200 OK
+Content-Encoding: gzip
+Content-Type: text/plain
+Content-Length: 30
+
+[compressed content]
 ```
 
-Time to move on to the next stage!
+Without compression:
+```http
+GET /echo/hello-world HTTP/1.1
+Host: localhost:4221
 
-# Stage 2 & beyond
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 11
 
-Note: This section is for stages 2 and beyond.
+hello-world
+```
 
-1. Ensure you have `dotnet (9.0)` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/Server.cs`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+### User-Agent Information
+
+```http
+GET /user-agent HTTP/1.1
+Host: localhost:4221
+User-Agent: (Windows NT 10.0; Win64; x64)
+
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 41
+
+ (Windows NT 10.0; Win64; x64)
+```
+
+### File Operations
+
+Creating a file:
+```http
+POST /files/tmp.txt HTTP/1.1
+Host: localhost:4221
+Content-Length: 18
+
+This is a test file
+
+HTTP/1.1 201 Created
+```
+
+Retrieving a file:
+```http
+GET /files/tmp.txt HTTP/1.1
+Host: localhost:4221
+
+HTTP/1.1 200 OK
+Content-Type: application/nest-kit
+Content-Length: 18
