@@ -11,6 +11,16 @@ Along the way you'll learn about TCP servers,
 [HTTP request syntax](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html),
 and more.
 
+## Resources needed for a complete understanding:
+
+- https://www.cloudflare.com/en-ca/learning/ddos/glossary/tcp-ip/
+
+- https://developer.mozilla.org/en-US/docs/Glossary/CRLF
+
+- https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/User-Agent
+
+- https://en.wikipedia.org/wiki/HTTP_compression
+
 ## Implemented Features
 
 - [x] Bind to a port  
