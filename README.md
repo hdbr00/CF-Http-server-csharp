@@ -1,8 +1,5 @@
 [![progress-banner](https://backend.codecrafters.io/progress/http-server/3357626b-124f-4d56-9090-900013a94a0c)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
-This is a starting point for C# solutions to the
-["Build Your Own HTTP server" Challenge](https://app.codecrafters.io/courses/http-server/overview).
-
 [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) is the
 protocol that powers the web. In this challenge, you'll build a HTTP/1.1 server
 that is capable of serving multiple clients.
