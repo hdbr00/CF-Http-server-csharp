@@ -160,20 +160,3 @@ Or, if running the executable directly:
 ```bash
 /tmp/codecrafters-build-http-server-csharp/codecrafters-http-server --directory /path/to/your/files
 ```
-
-## Project Structure
-
--   `codecrafters-http-server.csproj`: The C# project file defining dependencies, target framework (.NET 9.0), and build settings.
--   `codecrafters-http-server.sln`: Visual Studio solution file for managing the project.
--   `src/`: This directory contains all the C# source code for the HTTP server.
-    -   `Program.cs`: The main entry point for the application. It parses command-line arguments (e.g., `--directory`) and initializes and starts the `HttpServer`.
-    -   `HttpServer.cs`: Implements the TCP listener that accepts incoming client connections. It handles each client connection in a separate task to support concurrency.
-    -   `HttpRequest.cs`: Defines a class responsible for parsing raw HTTP request strings from a client into a structured `HttpRequest` object. This includes extracting the HTTP method, path, headers (like `User-Agent`, `Accept-Encoding`, `Connection`), and the request body.
-    -   `HttpResponse.cs`: Defines a class for constructing HTTP responses. It allows setting the status code, status message, headers, and body (either as a string or raw bytes). It also includes a method to serialize the response into a byte array suitable for sending over a socket.
-    -   `IRequestHandler.cs`: An interface defining the contract for request handling logic. This promotes separation of concerns for processing different types of requests.
-    -   `RequestHandler.cs`: The primary implementation of `IRequestHandler`. It contains the core logic to route incoming `HttpRequest` objects based on their path and method to appropriate handlers (e.g., handling requests for `/`, `/echo/*`, `/user-agent`, and `/files/*`). It is responsible for generating the corresponding `HttpResponse`.
--   `your_program.sh`: A utility shell script provided for easily building and running the server locally.
--   `.codecrafters/`: This directory contains scripts specifically used by the CodeCrafters platform for automated testing and execution of the project.
-    -   `compile.sh`: Script used by CodeCrafters to compile the C# project.
-    -   `run.sh`: Script used by CodeCrafters to execute the compiled server.
--   `codecrafters.yml`: Configuration file for the CodeCrafters platform, specifying settings like the C# language version (`dotnet-9.0`) and debug log preferences.
